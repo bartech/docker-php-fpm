@@ -1,6 +1,6 @@
 # vi: ft=dockerfile
-# Auto-generated via Ansible: edit ./ansible/DOCKERFILES/Dockerfile-prod.j2 instead.
-FROM bartech2/php-fpm:7.1-mods
+# Auto-generated via Ansible: edit ./ansible/DOCKERFILES/Dockerfile-base.j2 instead.
+FROM php:8.4-fpm
 MAINTAINER "cytopia" <cytopia@everythingcli.org>
 
 
@@ -18,39 +18,60 @@ LABEL "org.opencontainers.image.documentation"="https://github.com/devilbox/dock
 LABEL "org.opencontainers.image.source"="https://github.com/devilbox/docker-php-fpm"
 LABEL "org.opencontainers.image.vendor"="devilbox"
 LABEL "org.opencontainers.image.licenses"="MIT"
-LABEL "org.opencontainers.image.ref.name"="7.1-prod"
-LABEL "org.opencontainers.image.title"="PHP-FPM 7.1-prod"
-LABEL "org.opencontainers.image.description"="PHP-FPM 7.1-prod"
+LABEL "org.opencontainers.image.ref.name"="8.4-base"
+LABEL "org.opencontainers.image.title"="PHP-FPM 8.4-base"
+LABEL "org.opencontainers.image.description"="PHP-FPM 8.4-base"
 
 
 ###
-### Install
+### Envs
+###
+ENV MY_USER="devilbox" \
+	MY_GROUP="devilbox" \
+	MY_UID="1000" \
+	MY_GID="1000" \
+	PHP_VERSION="8.4"
+
+
+###
+### User/Group
+###
+RUN set -eux \
+	&& groupadd -g ${MY_GID} -r ${MY_GROUP} \
+	&& useradd -u ${MY_UID} -m -s /bin/bash -g ${MY_GROUP} ${MY_USER}
+
+
+###
+### Upgrade (install ps)
 ###
 RUN set -eux \
 	&& DEBIAN_FRONTEND=noninteractive apt-get update \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
-		locales-all \
-		postfix \
-		postfix-pcre \
-		cron \
-		rsyslog \
-		socat \
-		supervisor \
-	&& rm -rf /var/lib/apt/lists/* \
-	\
-# Fix: rsyslogd: imklog: cannot open kernel log (/proc/kmsg): Operation not permitted.
-	&& sed -i''  's/.*imklog.*//g' /etc/rsyslog.conf \
-	\
-# Setup Supervisor
-	&& rm -rf /etc/supervisor* \
-	&& mkdir -p /var/log/supervisor \
-	&& mkdir -p /etc/supervisor/conf.d \
-	&& mkdir -p /etc/supervisor/custom.d \
-	&& chown devilbox:devilbox /etc/supervisor/custom.d \
-	\
-	&& (find /usr/local/bin  -type f -print0 | xargs -n1 -0 -P$(getconf _NPROCESSORS_ONLN) strip --strip-all -p 2>/dev/null || true) \
-	&& (find /usr/local/lib  -type f -print0 | xargs -n1 -0 -P$(getconf _NPROCESSORS_ONLN) strip --strip-all -p 2>/dev/null || true) \
-	&& (find /usr/local/sbin -type f -print0 | xargs -n1 -0 -P$(getconf _NPROCESSORS_ONLN) strip --strip-all -p 2>/dev/null || true)
+		dpkg-dev \
+		procps \
+	&& rm -rf /var/lib/apt/lists/*
+
+
+###
+### Configure
+###
+RUN set -eux \
+	&& rm -rf /usr/local/etc/php-fpm.d \
+	&& mkdir -p /usr/local/etc/php-fpm.d \
+	&& mkdir -p /var/lib/php/session \
+	&& mkdir -p /var/lib/php/wsdlcache \
+	&& chown -R devilbox:devilbox /var/lib/php/session \
+	&& chown -R devilbox:devilbox /var/lib/php/wsdlcache
+
+
+###
+### Copy files
+###
+COPY ./data/php-ini.d/php-8.4.ini /usr/local/etc/php/conf.d/xxx-devilbox-default-php.ini
+COPY ./data/php-fpm.conf/php-fpm-8.4.conf /usr/local/etc/php-fpm.conf
+
+COPY ./data/docker-entrypoint.sh /docker-entrypoint.sh
+COPY ./data/docker-entrypoint.d /docker-entrypoint.d
 
 
 ###
@@ -58,7 +79,7 @@ RUN set -eux \
 ###
 RUN set -eux \
 	&& echo "date.timezone=UTC" > /usr/local/etc/php/php.ini \
-	&& php -v | grep -oE 'PHP\s[.0-9]+' | grep -oE '[.0-9]+' | grep '^7.1' \
+	&& php -v | grep -oE 'PHP\s[.0-9]+' | grep -oE '[.0-9]+' | grep '^8.4' \
 	&& /usr/local/sbin/php-fpm --test \
 	\
 	&& PHP_ERROR="$( php -v 2>&1 1>/dev/null )" \
@@ -74,21 +95,6 @@ RUN set -eux \
 
 
 ###
-### Copy files
-###
-COPY ./data/docker-entrypoint.sh /docker-entrypoint.sh
-COPY ./data/docker-entrypoint.d/*.sh /docker-entrypoint.d/
-COPY ./data/postfix.sh /usr/local/sbin/postfix.sh
-
-
-###
-### Volumes
-###
-VOLUME /var/log/php
-VOLUME /var/mail
-
-
-###
 ### Ports
 ###
 EXPOSE 9000
@@ -97,5 +103,5 @@ EXPOSE 9000
 ###
 ### Entrypoint
 ###
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+CMD ["/usr/local/sbin/php-fpm"]
 ENTRYPOINT ["/docker-entrypoint.sh"]

@@ -1,6 +1,6 @@
 # vi: ft=dockerfile
 # Auto-generated via Ansible: edit ./ansible/DOCKERFILES/Dockerfile-mods.j2 instead.
-FROM johnea/php-fpm:8.2-base as builder
+FROM bartech2/php-fpm:8.2-base as builder
 
 
 ###
@@ -935,7 +935,7 @@ RUN set -eux \
 
 
 # Auto-generated via Ansible: edit ./ansible/DOCKERFILES/Dockerfile-mods.j2 instead.
-FROM johnea/php-fpm:8.2-base as final
+FROM bartech2/php-fpm:8.2-base as final
 MAINTAINER "cytopia" <cytopia@everythingcli.org>
 
 ###

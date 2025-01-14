@@ -12,7 +12,7 @@
 ###
 ### Installs all cli tools required to install custom tools
 ###
-FROM bartech2/php-fpm:7.1-slim as devilbox-work-help-builder
+FROM bartech2/php-fpm:8.4-slim as devilbox-work-help-builder
 
 ###
 ### Install build_dep
@@ -20,7 +20,7 @@ FROM bartech2/php-fpm:7.1-slim as devilbox-work-help-builder
 RUN set -eux \
 	&& DEBIAN_FRONTEND=noninteractive apt-get update \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
-		libpython-dev \
+		libpython3-dev \
 	&& rm -rf /var/lib/apt/lists/*
 ###
 ### Install run_dep
@@ -28,6 +28,7 @@ RUN set -eux \
 RUN set -eux \
 	&& DEBIAN_FRONTEND=noninteractive apt-get update \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
+		python3-distutils \
 		unzip \
 	&& rm -rf /var/lib/apt/lists/*
 ###
@@ -37,7 +38,7 @@ RUN set -eux \
 # -------------------- composer --------------------
 RUN set -eux \
 	&& COMPOSER_1_VERSION="latest-1.x" \
-	&& COMPOSER_2_VERSION="latest-2.2.x" \
+	&& COMPOSER_2_VERSION="latest-2.x" \
 	\
 	&& curl -sS -L --fail "https://getcomposer.org/download/${COMPOSER_1_VERSION}/composer.phar" > /usr/local/bin/composer-1 \
 	&& curl -sS -L --fail "https://getcomposer.org/download/${COMPOSER_2_VERSION}/composer.phar" > /usr/local/bin/composer-2 \
@@ -88,7 +89,7 @@ RUN set -eux \
 # -------------------- pip --------------------
 RUN set -eux \
 	&& rm -rf /usr/lib/python3.*/EXTERNALLY-MANAGED	\
-	&& curl -sS -L --fail https://bootstrap.pypa.io/pip/2.7/get-pip.py | python \
+	&& curl -sS -L --fail https://bootstrap.pypa.io/get-pip.py | python3 \
 	\
 	&& /bin/ls -1 /usr/local/lib/ | grep ^python | while read -r version; do \
 	  cd "/usr/local/lib/${version}/" \
@@ -120,7 +121,7 @@ RUN set -eux \
 ###
 ### Copies all cli tools required to run Devilbox and its intranet into a clean image
 ###
-FROM bartech2/php-fpm:7.1-slim as devilbox-work-help
+FROM bartech2/php-fpm:8.4-slim as devilbox-work-help
 
 ###
 ### Install run_dep
@@ -128,6 +129,7 @@ FROM bartech2/php-fpm:7.1-slim as devilbox-work-help
 RUN set -eux \
 	&& DEBIAN_FRONTEND=noninteractive apt-get update \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
+		python3-distutils \
 		unzip \
 	&& rm -rf /var/lib/apt/lists/*
 
@@ -234,7 +236,7 @@ RUN set -eux \
 ###
 RUN set -eux \
 	&& echo "date.timezone=UTC" > /usr/local/etc/php/php.ini \
-	&& php -v | grep -oE 'PHP\s[.0-9]+' | grep -oE '[.0-9]+' | grep '^7.1' \
+	&& php -v | grep -oE 'PHP\s[.0-9]+' | grep -oE '[.0-9]+' | grep '^8.4' \
 	&& /usr/local/sbin/php-fpm --test \
 	\
 	&& PHP_ERROR="$( php -v 2>&1 1>/dev/null )" \
@@ -270,8 +272,6 @@ RUN set -eux \
 	&& DEBIAN_FRONTEND=noninteractive apt-get update \
 	&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests \
 		# ---------- build_deps ----------
-		python-pip \
-		python-wheel \
 		ruby-dev \
 		# ---------- run_deps ----------
 		dos2unix \
@@ -333,9 +333,7 @@ RUN set -eux \
 
 # -------------------- (rubygem) mdl --------------------
 RUN set -eux \
-	&& gem install chef-utils -v 16.6.14 \
-	\
-	&& gem install mdl -v 0.11.0 \
+	&& gem install mdl \
 	&& mdl --version | grep -E '[.0-9]+' || (mdl --version; false)	\
 	&& true
 
@@ -362,8 +360,16 @@ RUN set -eux \
 
 # -------------------- (custom) deployer --------------------
 RUN set -eux \
-	&& TAG_VERSION="v6.7.0"	\
-	&& curl -sS -k -L --fail "https://deployer.org/releases/${TAG_VERSION}/deployer.phar" -L -o /usr/local/bin/dep	\
+	&& TAG_VERSION="$( \
+	  curl -sSL 'https://github.com/deployphp/deployer/releases/latest' \
+	  | grep -Eo '/deployphp/deployer/releases/tag/["-.0-9v"]+' \
+	  | grep -Eo '[-.0-9v]+' \
+	  | head -1 \
+	)" \
+	\
+	&& DEP_URL="https://github.com/deployphp/deployer/releases/download/${TAG_VERSION}/deployer.phar" \
+	&& curl -sS -k -L --fail -L -o /usr/local/bin/dep "${DEP_URL}" \
+	\
 	&& chmod +x /usr/local/bin/dep	\
 	&& dep --version 2>/dev/null | grep -Ei 'deployer\s*(version\s*)?[0-9][.0-9]+' || (dep --version; false)	\
 	&& true
@@ -399,8 +405,8 @@ RUN set -eux \
 
 # -------------------- (composer) laravel-installer --------------------
 RUN set -eux \
-	&& COMPOSER_HOME="/usr/local/src/composer" COMPOSER_MEMORY_LIMIT=-1 /usr/local/bin/composer-2 global require --no-interaction --no-cache  laravel/installer:2.3.0 \
-	&& ln -s /usr/local/src/composer/vendor/laravel/installer/laravel /usr/local/bin/ \
+	&& COMPOSER_HOME="/usr/local/src/composer" COMPOSER_MEMORY_LIMIT=-1 /usr/local/bin/composer-2 global require --no-interaction --no-cache  laravel/installer \
+	&& ln -s /usr/local/src/composer/vendor/laravel/installer/bin/laravel /usr/local/bin/ \
 	&& rm -rf /usr/local/src/composer/cache/* \
 	&& laravel --version | grep ^Laravel | grep -E '[0-9]\.[0-9]+' || (laravel --version; false)	\
 	&& true
@@ -439,48 +445,9 @@ RUN set -eux \
 	&& netstat --version | grep net-tools || (netstat --version; false)	\
 	&& true
 
-# -------------------- (composer) phalcon-devtools --------------------
-RUN set -eux \
-	&& if find /usr/local/lib/php/extensions/ -name phalcon.so | grep phalcon; then \
-	  echo "extension=phalcon.so" > /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini; \
-	fi \
-	&& if find /usr/local/lib/php/extensions/ -name psr.so | grep psr; then \
-	  echo "extension=psr.so" > /usr/local/etc/php/conf.d/docker-php-ext-psr.ini; \
-	fi \
-	\
-	&& COMPOSER_HOME="/usr/local/src/composer" COMPOSER_MEMORY_LIMIT=-1 /usr/local/bin/composer-2 global require --no-interaction --no-cache  phalcon/devtools:3.4.11 \
-	&& ln -s /usr/local/src/composer/vendor/phalcon/devtools/phalcon /usr/local/bin/ \
-	&& rm -rf /usr/local/src/composer/cache/* \
-	&& if [ -f /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini ]; then \
-	  rm /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini; \
-	fi \
-	&& if [ -f /usr/local/etc/php/conf.d/docker-php-ext-psr.ini ]; then \
-	  echo "extension=psr.so" > /usr/local/etc/php/conf.d/docker-php-ext-psr.ini; \
-	fi \
-	\
-	&& if find /usr/local/lib/php/extensions/ -name phalcon.so | grep phalcon; then \
-	  echo "extension=phalcon.so" > /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini; \
-	fi \
-	&& if find /usr/local/lib/php/extensions/ -name psr.so | grep psr; then \
-	  echo "extension=psr.so" > /usr/local/etc/php/conf.d/docker-php-ext-psr.ini; \
-	fi \
-	\
-	\
-	&& phalcon commands | grep -E '[0-9][.0-9]+' || (phalcon commands; false) \
-	\
-	\
-	&& if [ -f /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini ]; then \
-	  rm /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini; \
-	fi \
-	&& if [ -f /usr/local/etc/php/conf.d/docker-php-ext-psr.ini ]; then \
-	  echo "extension=psr.so" > /usr/local/etc/php/conf.d/docker-php-ext-psr.ini; \
-	fi \
-	\
-	&& true
-
 # -------------------- (custom) php-cs-fixer --------------------
 RUN set -eux \
-	&& PHP_CS_FIXER_URL="https://cs.symfony.com/download/php-cs-fixer-v2.phar"	\
+	&& PHP_CS_FIXER_URL="https://cs.symfony.com/download/php-cs-fixer-v3.phar"	\
 	&& curl -sS -k -L --fail -L "${PHP_CS_FIXER_URL}" -o /usr/local/bin/php-cs-fixer	\
 	&& chmod +x /usr/local/bin/php-cs-fixer	\
 	&& php-cs-fixer --version 2>&1 | grep -E 'Fixer\s+(version\s*)?[-_.0-9]+\s+' || (php-cs-fixer --version; false)	\
@@ -511,7 +478,7 @@ RUN set -eux \
 
 # -------------------- (custom) phpunit --------------------
 RUN set -eux \
-	&& PHP_UNIT_VERSION="7"	\
+	&& PHP_UNIT_VERSION=""	\
 	&& if [ -n "${PHP_UNIT_VERSION}" ]; then \
 	  PHP_UNIT_URL="https://phar.phpunit.de/phpunit-${PHP_UNIT_VERSION}.phar"; \
 	else \
@@ -532,7 +499,7 @@ RUN set -eux \
 
 # -------------------- (pip) pwncat --------------------
 RUN set -eux \
-	&& pip install --no-cache-dir --no-compile --force-reinstall  pwncat \
+	&& pip install --no-cache-dir --no-compile --force-reinstall --break-system-packages pwncat \
 	&& ln -s pwncat /usr/local/bin/netcat \
 	\
 	&& pwncat --version 2>&1 | grep -E 'Version [0-9][.0-9]+' || (pwncat --version; false)	\
@@ -610,7 +577,7 @@ RUN set -eux \
 
 # -------------------- (custom) wkhtmltopdf --------------------
 RUN set -eux \
-	&& OS_RELEASE="buster"	\
+	&& OS_RELEASE="bookworm"	\
 	&& DEB_HOST_ARCH="$( dpkg-architecture --query DEB_HOST_ARCH )" \
 	&& if [ "${OS_RELEASE}" = "bookworm" ]; then \
 	  WK_VERSION="$( \
@@ -653,20 +620,13 @@ RUN set -eux \
 
 # -------------------- (pip) yamllint --------------------
 RUN set -eux \
-	&& DEB_HOST_ARCH="$( dpkg-architecture --query DEB_HOST_ARCH )" \
-	&& if [ "${DEB_HOST_ARCH}" = "arm64" ]; then \
-	  pip install --upgrade "pip < 21.0" \
-	  && pip install setuptools==44.1.1 --no-build-isolation \
-	  && pip install "cython<3.0" --no-build-isolation; \
-	fi \
-	\
 	&& pip install --no-cache-dir --no-compile --force-reinstall  yamllint \
 	&& yamllint --version 2>&1 | grep -E '[0-9][.0-9]+' || (yamllint --version; false)	\
 	&& true
 
 # -------------------- (pip) yq --------------------
 RUN set -eux \
-	&& pip install --no-cache-dir --no-compile --force-reinstall  yq \
+	&& pip install --no-cache-dir --no-compile --force-reinstall --break-system-packages yq \
 	&& yq --version 2>&1 | grep -E '[0-9][.0-9]+' || (yq --version; false)	\
 	&& true
 
@@ -871,28 +831,6 @@ RUN set -eux \
 	&& netstat --version | grep net-tools || (netstat --version; false)	\
 	&& true
 
-# -------------------- (composer) phalcon-devtools --------------------
-RUN set -eux \
-	&& if find /usr/local/lib/php/extensions/ -name phalcon.so | grep phalcon; then \
-	  echo "extension=phalcon.so" > /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini; \
-	fi \
-	&& if find /usr/local/lib/php/extensions/ -name psr.so | grep psr; then \
-	  echo "extension=psr.so" > /usr/local/etc/php/conf.d/docker-php-ext-psr.ini; \
-	fi \
-	\
-	\
-	&& phalcon commands | grep -E '[0-9][.0-9]+' || (phalcon commands; false) \
-	\
-	\
-	&& if [ -f /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini ]; then \
-	  rm /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini; \
-	fi \
-	&& if [ -f /usr/local/etc/php/conf.d/docker-php-ext-psr.ini ]; then \
-	  echo "extension=psr.so" > /usr/local/etc/php/conf.d/docker-php-ext-psr.ini; \
-	fi \
-	\
-	&& true
-
 # -------------------- (custom) php-cs-fixer --------------------
 RUN set -eux \
 	&& php-cs-fixer --version 2>&1 | grep -E 'Fixer\s+(version\s*)?[-_.0-9]+\s+' || (php-cs-fixer --version; false)	\
@@ -1037,7 +975,7 @@ RUN set -eux \
 ###
 RUN set -eux \
 	&& echo "date.timezone=UTC" > /usr/local/etc/php/php.ini \
-	&& php -v | grep -oE 'PHP\s[.0-9]+' | grep -oE '[.0-9]+' | grep '^7.1' \
+	&& php -v | grep -oE 'PHP\s[.0-9]+' | grep -oE '[.0-9]+' | grep '^8.4' \
 	&& /usr/local/sbin/php-fpm --test \
 	\
 	&& PHP_ERROR="$( php -v 2>&1 1>/dev/null )" \
@@ -1081,9 +1019,9 @@ LABEL "org.opencontainers.image.documentation"="https://github.com/devilbox/dock
 LABEL "org.opencontainers.image.source"="https://github.com/devilbox/docker-php-fpm"
 LABEL "org.opencontainers.image.vendor"="devilbox"
 LABEL "org.opencontainers.image.licenses"="MIT"
-LABEL "org.opencontainers.image.ref.name"="7.1-work"
-LABEL "org.opencontainers.image.title"="PHP-FPM 7.1-work"
-LABEL "org.opencontainers.image.description"="PHP-FPM 7.1-work"
+LABEL "org.opencontainers.image.ref.name"="8.4-work"
+LABEL "org.opencontainers.image.title"="PHP-FPM 8.4-work"
+LABEL "org.opencontainers.image.description"="PHP-FPM 8.4-work"
 
 ###
 ### Volumes

@@ -1,6 +1,6 @@
 # vi: ft=dockerfile
 # Auto-generated via Ansible: edit ./ansible/DOCKERFILES/Dockerfile-prod.j2 instead.
-FROM bartech2/php-fpm:7.1-mods
+FROM bartech2/php-fpm:8.4-mods
 MAINTAINER "cytopia" <cytopia@everythingcli.org>
 
 
@@ -18,9 +18,9 @@ LABEL "org.opencontainers.image.documentation"="https://github.com/devilbox/dock
 LABEL "org.opencontainers.image.source"="https://github.com/devilbox/docker-php-fpm"
 LABEL "org.opencontainers.image.vendor"="devilbox"
 LABEL "org.opencontainers.image.licenses"="MIT"
-LABEL "org.opencontainers.image.ref.name"="7.1-prod"
-LABEL "org.opencontainers.image.title"="PHP-FPM 7.1-prod"
-LABEL "org.opencontainers.image.description"="PHP-FPM 7.1-prod"
+LABEL "org.opencontainers.image.ref.name"="8.4-prod"
+LABEL "org.opencontainers.image.title"="PHP-FPM 8.4-prod"
+LABEL "org.opencontainers.image.description"="PHP-FPM 8.4-prod"
 
 
 ###
@@ -58,7 +58,7 @@ RUN set -eux \
 ###
 RUN set -eux \
 	&& echo "date.timezone=UTC" > /usr/local/etc/php/php.ini \
-	&& php -v | grep -oE 'PHP\s[.0-9]+' | grep -oE '[.0-9]+' | grep '^7.1' \
+	&& php -v | grep -oE 'PHP\s[.0-9]+' | grep -oE '[.0-9]+' | grep '^8.4' \
 	&& /usr/local/sbin/php-fpm --test \
 	\
 	&& PHP_ERROR="$( php -v 2>&1 1>/dev/null )" \

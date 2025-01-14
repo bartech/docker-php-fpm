@@ -3,7 +3,7 @@ name: "❔ Question"
 description: How do I do X or Y?
 title: "[Question]: "
 labels: ["question", "status:triage"]
-assignees: [john-ea]
+assignees: [bartech]
 
 body:
 

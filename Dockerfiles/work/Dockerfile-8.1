@@ -12,7 +12,7 @@
 ###
 ### Installs all cli tools required to install custom tools
 ###
-FROM johnea/php-fpm:8.1-slim as devilbox-work-help-builder
+FROM bartech2/php-fpm:8.1-slim as devilbox-work-help-builder
 
 ###
 ### Install build_dep
@@ -121,7 +121,7 @@ RUN set -eux \
 ###
 ### Copies all cli tools required to run Devilbox and its intranet into a clean image
 ###
-FROM johnea/php-fpm:8.1-slim as devilbox-work-help
+FROM bartech2/php-fpm:8.1-slim as devilbox-work-help
 
 ###
 ### Install run_dep
